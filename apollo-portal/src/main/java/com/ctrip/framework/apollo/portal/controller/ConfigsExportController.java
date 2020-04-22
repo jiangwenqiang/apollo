@@ -5,7 +5,7 @@ import com.ctrip.framework.apollo.common.exception.BadRequestException;
 import com.ctrip.framework.apollo.common.exception.ServiceException;
 import com.ctrip.framework.apollo.core.ConfigConsts;
 import com.ctrip.framework.apollo.core.enums.ConfigFileFormat;
-import com.ctrip.framework.apollo.core.enums.Env;
+import com.ctrip.framework.apollo.portal.environment.Env;
 import com.ctrip.framework.apollo.portal.entity.bo.NamespaceBO;
 import com.ctrip.framework.apollo.portal.entity.model.NamespaceTextModel;
 import com.ctrip.framework.apollo.portal.service.ItemService;
@@ -14,6 +14,7 @@ import com.ctrip.framework.apollo.portal.util.ConfigToFileUtils;
 import com.google.common.base.Joiner;
 import com.google.common.base.Splitter;
 import org.springframework.context.annotation.Lazy;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -45,6 +46,7 @@ public class ConfigsExportController {
     this.namespaceService = namespaceService;
   }
 
+  @PreAuthorize(value = "@permissionValidator.hasModifyNamespacePermission(#appId, #namespaceName, #env)")
   @PostMapping("/apps/{appId}/envs/{env}/clusters/{clusterName}/namespaces/{namespaceName}/items/import")
   public void importConfigFile(@PathVariable String appId, @PathVariable String env,
       @PathVariable String clusterName, @PathVariable String namespaceName,
@@ -57,7 +59,7 @@ public class ConfigsExportController {
         .loadNamespaceBaseInfo(appId, Env.fromString(env), clusterName, namespaceName);
 
     if (Objects.isNull(namespaceDTO)) {
-      throw new BadRequestException(String.format("Namespace: {} not exist.", namespaceName));
+      throw new BadRequestException(String.format("Namespace: %s not exist.", namespaceName));
     }
 
     NamespaceTextModel model = new NamespaceTextModel();

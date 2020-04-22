@@ -2,8 +2,6 @@ package com.ctrip.framework.apollo.portal.controller;
 
 import com.ctrip.framework.apollo.common.exception.BadRequestException;
 import com.ctrip.framework.apollo.common.utils.RequestPrecondition;
-import com.ctrip.framework.apollo.core.enums.Env;
-import com.ctrip.framework.apollo.core.enums.EnvUtils;
 import com.ctrip.framework.apollo.portal.component.PermissionValidator;
 import com.ctrip.framework.apollo.portal.constant.PermissionType;
 import com.ctrip.framework.apollo.portal.constant.RoleType;
@@ -12,6 +10,7 @@ import com.ctrip.framework.apollo.portal.entity.vo.AppRolesAssignedUsers;
 import com.ctrip.framework.apollo.portal.entity.vo.NamespaceEnvRolesAssignedUsers;
 import com.ctrip.framework.apollo.portal.entity.vo.NamespaceRolesAssignedUsers;
 import com.ctrip.framework.apollo.portal.entity.vo.PermissionCondition;
+import com.ctrip.framework.apollo.portal.environment.Env;
 import com.ctrip.framework.apollo.portal.service.RoleInitializationService;
 import com.ctrip.framework.apollo.portal.service.RolePermissionService;
 import com.ctrip.framework.apollo.portal.service.SystemRoleManagerService;
@@ -24,15 +23,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.util.CollectionUtils;
-import org.springframework.web.bind.annotation.DeleteMapping;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import java.util.*;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 
@@ -116,7 +111,7 @@ public class PermissionController {
   public NamespaceEnvRolesAssignedUsers getNamespaceEnvRoles(@PathVariable String appId, @PathVariable String env, @PathVariable String namespaceName) {
 
     // validate env parameter
-    if (Env.UNKNOWN == EnvUtils.transformEnv(env)) {
+    if (Env.UNKNOWN == Env.transformEnv(env)) {
       throw new BadRequestException("env is illegal");
     }
 
@@ -148,13 +143,13 @@ public class PermissionController {
     }
 
     // validate env parameter
-    if (Env.UNKNOWN == EnvUtils.transformEnv(env)) {
+    if (Env.UNKNOWN == Env.transformEnv(env)) {
       throw new BadRequestException("env is illegal");
     }
     Set<String> assignedUser = rolePermissionService.assignRoleToUsers(RoleUtils.buildNamespaceRoleName(appId, namespaceName, roleType, env),
         Sets.newHashSet(user), userInfoHolder.getUser().getUserId());
     if (CollectionUtils.isEmpty(assignedUser)) {
-      throw new BadRequestException(user + "已授权");
+      throw new BadRequestException(user + " already authorized");
     }
 
     return ResponseEntity.ok().build();
@@ -170,7 +165,7 @@ public class PermissionController {
       throw new BadRequestException("role type is illegal");
     }
     // validate env parameter
-    if (Env.UNKNOWN == EnvUtils.transformEnv(env)) {
+    if (Env.UNKNOWN == Env.transformEnv(env)) {
       throw new BadRequestException("env is illegal");
     }
     rolePermissionService.removeRoleFromUsers(RoleUtils.buildNamespaceRoleName(appId, namespaceName, roleType, env),
@@ -209,7 +204,7 @@ public class PermissionController {
     Set<String> assignedUser = rolePermissionService.assignRoleToUsers(RoleUtils.buildNamespaceRoleName(appId, namespaceName, roleType),
         Sets.newHashSet(user), userInfoHolder.getUser().getUserId());
     if (CollectionUtils.isEmpty(assignedUser)) {
-      throw new BadRequestException(user + "已授权");
+      throw new BadRequestException(user + " already authorized");
     }
 
     return ResponseEntity.ok().build();
@@ -253,7 +248,7 @@ public class PermissionController {
     Set<String> assignedUsers = rolePermissionService.assignRoleToUsers(RoleUtils.buildAppRoleName(appId, roleType),
         Sets.newHashSet(user), userInfoHolder.getUser().getUserId());
     if (CollectionUtils.isEmpty(assignedUsers)) {
-      throw new BadRequestException(user + "已授权");
+      throw new BadRequestException(user + " already authorized");
     }
 
     return ResponseEntity.ok().build();
@@ -322,7 +317,7 @@ public class PermissionController {
     roleInitializationService.initManageAppMasterRole(appId, userInfoHolder.getUser().getUserId());
     Set<String> userIds = new HashSet<>();
     userIds.add(userId);
-    rolePermissionService.assignRoleToUsers(RoleUtils.buildManageAppMasterRoleName(PermissionType.MANAGE_APP_MASTER, appId),
+    rolePermissionService.assignRoleToUsers(RoleUtils.buildAppRoleName(appId, PermissionType.MANAGE_APP_MASTER),
             userIds, userInfoHolder.getUser().getUserId());
     return ResponseEntity.ok().build();
   }
@@ -334,7 +329,7 @@ public class PermissionController {
     roleInitializationService.initManageAppMasterRole(appId, userInfoHolder.getUser().getUserId());
     Set<String> userIds = new HashSet<>();
     userIds.add(userId);
-    rolePermissionService.removeRoleFromUsers(RoleUtils.buildManageAppMasterRoleName(PermissionType.MANAGE_APP_MASTER, appId),
+    rolePermissionService.removeRoleFromUsers(RoleUtils.buildAppRoleName(appId, PermissionType.MANAGE_APP_MASTER),
             userIds, userInfoHolder.getUser().getUserId());
     return ResponseEntity.ok().build();
   }
