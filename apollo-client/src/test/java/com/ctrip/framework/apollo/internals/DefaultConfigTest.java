@@ -1,5 +1,22 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.internals;
 
+import static org.awaitility.Awaitility.await;
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
@@ -27,6 +44,7 @@ import java.util.concurrent.TimeUnit;
 import com.google.common.base.Function;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Lists;
+import org.awaitility.core.ThrowingRunnable;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -60,7 +78,6 @@ public class DefaultConfigTest {
 
   @Before
   public void setUp() throws Exception {
-    MockInjector.reset();
     MockInjector.setInstance(ConfigUtil.class, new MockConfigUtil());
 
     propertiesFactory = mock(PropertiesFactory.class);
@@ -80,6 +97,7 @@ public class DefaultConfigTest {
 
   @After
   public void tearDown() throws Exception {
+    MockInjector.reset();
     recursiveDelete(someResourceDir);
   }
 
@@ -252,10 +270,10 @@ public class DefaultConfigTest {
 
   @Test
   public void testGetIntPropertyMultipleTimesWithShortExpireTime() throws Exception {
-    String someKey = "someKey";
-    Integer someValue = 2;
+    final String someKey = "someKey";
+    final Integer someValue = 2;
 
-    Integer someDefaultValue = -1;
+    final Integer someDefaultValue = -1;
 
     MockInjector.setInstance(ConfigUtil.class, new MockConfigUtilWithShortExpireTime());
 
@@ -264,7 +282,7 @@ public class DefaultConfigTest {
     when(someProperties.getProperty(someKey)).thenReturn(String.valueOf(someValue));
     when(configRepository.getConfig()).thenReturn(someProperties);
 
-    DefaultConfig defaultConfig =
+    final DefaultConfig defaultConfig =
         new DefaultConfig(someNamespace, configRepository);
 
     assertEquals(someValue, defaultConfig.getIntProperty(someKey, someDefaultValue));
@@ -272,12 +290,15 @@ public class DefaultConfigTest {
 
     verify(someProperties, times(1)).getProperty(someKey);
 
-    TimeUnit.MILLISECONDS.sleep(50);
+    await().atMost(500, TimeUnit.MILLISECONDS).untilAsserted(new ThrowingRunnable() {
+      @Override
+      public void run() throws Throwable {
+        assertEquals(someValue, defaultConfig.getIntProperty(someKey, someDefaultValue));
+        assertEquals(someValue, defaultConfig.getIntProperty(someKey, someDefaultValue));
 
-    assertEquals(someValue, defaultConfig.getIntProperty(someKey, someDefaultValue));
-    assertEquals(someValue, defaultConfig.getIntProperty(someKey, someDefaultValue));
-
-    verify(someProperties, times(2)).getProperty(someKey);
+        verify(someProperties, times(2)).getProperty(someKey);
+      }
+    });
   }
 
   @Test
@@ -286,9 +307,9 @@ public class DefaultConfigTest {
     String someStringValue = "someStringValue";
 
     String someKey = "someKey";
-    Long someValue = 2l;
+    Long someValue = 2L;
 
-    Long someDefaultValue = -1l;
+    Long someDefaultValue = -1L;
 
     //set up config repo
     someProperties = new Properties();
@@ -730,7 +751,18 @@ public class DefaultConfigTest {
     ConfigChangeEvent changeEvent = interestedInAllKeysFuture.get(500, TimeUnit.MILLISECONDS);
 
     assertEquals(someChangeEvent, changeEvent);
-    assertEquals(someChangeEvent, interestedInSomeKeyFuture.get(500, TimeUnit.MILLISECONDS));
+
+    {
+      // hidden variables in scope
+      ConfigChangeEvent actualConfigChangeEvent = interestedInSomeKeyFuture.get(500, TimeUnit.MILLISECONDS);
+      assertEquals(someChangeEvent.changedKeys(), actualConfigChangeEvent.changedKeys());
+      for (String changedKey : someChangeEvent.changedKeys()) {
+        ConfigChange expectConfigChange = someChangeEvent.getChange(changedKey);
+        ConfigChange actualConfigChange = actualConfigChangeEvent.getChange(changedKey);
+        assertEquals(expectConfigChange, actualConfigChange);
+      }
+    }
+
     assertFalse(interestedInSomeKeyNotChangedFuture.isDone());
   }
 

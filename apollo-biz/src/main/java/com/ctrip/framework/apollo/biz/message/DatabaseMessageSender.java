@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.biz.message;
 
 import com.ctrip.framework.apollo.biz.entity.ReleaseMessage;
@@ -44,7 +60,7 @@ public class DatabaseMessageSender implements MessageSender {
   public void sendMessage(String message, String channel) {
     logger.info("Sending message {} to channel {}", message, channel);
     if (!Objects.equals(channel, Topics.APOLLO_RELEASE_TOPIC)) {
-      logger.warn("Channel {} not supported by DatabaseMessageSender!");
+      logger.warn("Channel {} not supported by DatabaseMessageSender!", channel);
       return;
     }
 
@@ -82,12 +98,12 @@ public class DatabaseMessageSender implements MessageSender {
   }
 
   private void cleanMessage(Long id) {
-    boolean hasMore = true;
     //double check in case the release message is rolled back
     ReleaseMessage releaseMessage = releaseMessageRepository.findById(id).orElse(null);
     if (releaseMessage == null) {
       return;
     }
+    boolean hasMore = true;
     while (hasMore && !Thread.currentThread().isInterrupted()) {
       List<ReleaseMessage> messages = releaseMessageRepository.findFirst100ByMessageAndIdLessThanOrderByIdAsc(
           releaseMessage.getMessage(), releaseMessage.getId());

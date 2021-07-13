@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.internals;
 
 import com.ctrip.framework.apollo.build.ApolloInjector;
@@ -18,7 +34,7 @@ import com.ctrip.framework.apollo.util.ConfigUtil;
 import com.ctrip.framework.apollo.util.ExceptionUtil;
 import com.ctrip.framework.apollo.util.http.HttpRequest;
 import com.ctrip.framework.apollo.util.http.HttpResponse;
-import com.ctrip.framework.apollo.util.http.HttpUtil;
+import com.ctrip.framework.apollo.util.http.HttpClient;
 import com.google.common.base.Joiner;
 import com.google.common.base.Strings;
 import com.google.common.collect.HashMultimap;
@@ -63,9 +79,9 @@ public class RemoteConfigLongPollService {
   private final ConcurrentMap<String, Long> m_notifications;
   private final Map<String, ApolloNotificationMessages> m_remoteNotificationMessages;//namespaceName -> watchedKey -> notificationId
   private Type m_responseType;
-  private Gson gson;
+  private static final Gson GSON = new Gson();
   private ConfigUtil m_configUtil;
-  private HttpUtil m_httpUtil;
+  private HttpClient m_httpClient;
   private ConfigServiceLocator m_serviceLocator;
 
   /**
@@ -83,9 +99,8 @@ public class RemoteConfigLongPollService {
     m_remoteNotificationMessages = Maps.newConcurrentMap();
     m_responseType = new TypeToken<List<ApolloConfigNotification>>() {
     }.getType();
-    gson = new Gson();
     m_configUtil = ApolloInjector.getInstance(ConfigUtil.class);
-    m_httpUtil = ApolloInjector.getInstance(HttpUtil.class);
+    m_httpClient = ApolloInjector.getInstance(HttpClient.class);
     m_serviceLocator = ApolloInjector.getInstance(ConfigServiceLocator.class);
     m_longPollRateLimiter = RateLimiter.create(m_configUtil.getLongPollQPS());
   }
@@ -172,7 +187,7 @@ public class RemoteConfigLongPollService {
         transaction.addData("Url", url);
 
         final HttpResponse<List<ApolloConfigNotification>> response =
-            m_httpUtil.doGet(request, m_responseType);
+            m_httpClient.doGet(request, m_responseType);
 
         logger.debug("Long polling response: {}, url: {}", response.getStatusCode(), url);
         if (response.getStatusCode() == 200 && response.getBody() != null) {
@@ -306,7 +321,7 @@ public class RemoteConfigLongPollService {
       ApolloConfigNotification notification = new ApolloConfigNotification(entry.getKey(), entry.getValue());
       notifications.add(notification);
     }
-    return gson.toJson(notifications);
+    return GSON.toJson(notifications);
   }
 
   private List<ServiceDTO> getConfigServices() {

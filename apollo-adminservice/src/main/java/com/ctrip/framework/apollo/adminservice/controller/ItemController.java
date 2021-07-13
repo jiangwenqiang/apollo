@@ -1,12 +1,30 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.adminservice.controller;
 
 import com.ctrip.framework.apollo.adminservice.aop.PreAcquireNamespaceLock;
 import com.ctrip.framework.apollo.biz.entity.Commit;
 import com.ctrip.framework.apollo.biz.entity.Item;
 import com.ctrip.framework.apollo.biz.entity.Namespace;
+import com.ctrip.framework.apollo.biz.entity.Release;
 import com.ctrip.framework.apollo.biz.service.CommitService;
 import com.ctrip.framework.apollo.biz.service.ItemService;
 import com.ctrip.framework.apollo.biz.service.NamespaceService;
+import com.ctrip.framework.apollo.biz.service.ReleaseService;
 import com.ctrip.framework.apollo.biz.utils.ConfigChangeContentBuilder;
 import com.ctrip.framework.apollo.common.dto.ItemDTO;
 import com.ctrip.framework.apollo.common.exception.BadRequestException;
@@ -32,11 +50,14 @@ public class ItemController {
   private final ItemService itemService;
   private final NamespaceService namespaceService;
   private final CommitService commitService;
+  private final ReleaseService releaseService;
 
-  public ItemController(final ItemService itemService, final NamespaceService namespaceService, final CommitService commitService) {
+
+  public ItemController(final ItemService itemService, final NamespaceService namespaceService, final CommitService commitService, final ReleaseService releaseService) {
     this.itemService = itemService;
     this.namespaceService = namespaceService;
     this.commitService = commitService;
+    this.releaseService = releaseService;
   }
 
   @PreAcquireNamespaceLock
@@ -74,16 +95,21 @@ public class ItemController {
                         @PathVariable("namespaceName") String namespaceName,
                         @PathVariable("itemId") long itemId,
                         @RequestBody ItemDTO itemDTO) {
+    Item managedEntity = itemService.findOne(itemId);
+    if (managedEntity == null) {
+      throw new NotFoundException("item not found for itemId " + itemId);
+    }
+
+    Namespace namespace = namespaceService.findOne(appId, clusterName, namespaceName);
+    // In case someone constructs an attack scenario
+    if (namespace == null || namespace.getId() != managedEntity.getNamespaceId()) {
+      throw new BadRequestException("Invalid request, item and namespace do not match!");
+    }
 
     Item entity = BeanUtils.transform(Item.class, itemDTO);
 
     ConfigChangeContentBuilder builder = new ConfigChangeContentBuilder();
-
-    Item managedEntity = itemService.findOne(itemId);
-    if (managedEntity == null) {
-      throw new BadRequestException("item not exist");
-    }
-
+   
     Item beforeUpdateItem = BeanUtils.transform(Item.class, managedEntity);
 
     //protect. only value,comment,lastModifiedBy can be modified
@@ -141,7 +167,15 @@ public class ItemController {
   public List<ItemDTO> findDeletedItems(@PathVariable("appId") String appId,
                                         @PathVariable("clusterName") String clusterName,
                                         @PathVariable("namespaceName") String namespaceName) {
-    List<Commit> commits = commitService.find(appId, clusterName, namespaceName, null);
+    //get latest release time
+    Release latestActiveRelease = releaseService.findLatestActiveRelease(appId, clusterName, namespaceName);
+    List<Commit> commits;
+    if (Objects.nonNull(latestActiveRelease)) {
+      commits = commitService.find(appId, clusterName, namespaceName, latestActiveRelease.getDataChangeCreatedTime(), null);
+    } else {
+      commits = commitService.find(appId, clusterName, namespaceName, null);
+    }
+
     if (Objects.nonNull(commits)) {
       List<Item> deletedItems = commits.stream()
           .map(item -> ConfigChangeContentBuilder.convertJsonString(item.getChangeSets()).getDeleteItems())

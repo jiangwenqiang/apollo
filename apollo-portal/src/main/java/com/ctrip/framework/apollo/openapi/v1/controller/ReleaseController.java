@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.openapi.v1.controller;
 
 import com.ctrip.framework.apollo.common.dto.ReleaseDTO;
@@ -15,7 +31,6 @@ import com.ctrip.framework.apollo.portal.entity.model.NamespaceGrayDelReleaseMod
 import com.ctrip.framework.apollo.portal.entity.model.NamespaceReleaseModel;
 import com.ctrip.framework.apollo.portal.service.NamespaceBranchService;
 import com.ctrip.framework.apollo.portal.service.ReleaseService;
-import com.ctrip.framework.apollo.portal.spi.UserInfoHolder;
 import com.ctrip.framework.apollo.portal.spi.UserService;
 import javax.servlet.http.HttpServletRequest;
 import org.springframework.security.access.AccessDeniedException;
@@ -67,7 +82,7 @@ public class ReleaseController {
     NamespaceReleaseModel releaseModel = BeanUtils.transform(NamespaceReleaseModel.class, model);
 
     releaseModel.setAppId(appId);
-    releaseModel.setEnv(Env.fromString(env).toString());
+    releaseModel.setEnv(Env.valueOf(env).toString());
     releaseModel.setClusterName(clusterName);
     releaseModel.setNamespaceName(namespaceName);
 
@@ -78,7 +93,7 @@ public class ReleaseController {
   public OpenReleaseDTO loadLatestActiveRelease(@PathVariable String appId, @PathVariable String env,
                                                 @PathVariable String clusterName, @PathVariable
                                                     String namespaceName) {
-    ReleaseDTO releaseDTO = releaseService.loadLatestRelease(appId, Env.fromString
+    ReleaseDTO releaseDTO = releaseService.loadLatestRelease(appId, Env.valueOf
         (env), clusterName, namespaceName);
     if (releaseDTO == null) {
       return null;
@@ -126,7 +141,7 @@ public class ReleaseController {
         NamespaceReleaseModel releaseModel = BeanUtils.transform(NamespaceReleaseModel.class, model);
 
         releaseModel.setAppId(appId);
-        releaseModel.setEnv(Env.fromString(env).toString());
+        releaseModel.setEnv(Env.valueOf(env).toString());
         releaseModel.setClusterName(branchName);
         releaseModel.setNamespaceName(namespaceName);
 
@@ -169,7 +184,7 @@ public class ReleaseController {
       throw new BadRequestException("user(operator) not exists");
     }
 
-    ReleaseDTO release = releaseService.findReleaseById(Env.fromString(env), releaseId);
+    ReleaseDTO release = releaseService.findReleaseById(Env.valueOf(env), releaseId);
 
     if (release == null) {
       throw new BadRequestException("release not found");
@@ -179,7 +194,7 @@ public class ReleaseController {
       throw new AccessDeniedException("Forbidden operation. you don't have release permission");
     }
 
-    releaseService.rollback(Env.fromString(env), releaseId, operator);
+    releaseService.rollback(Env.valueOf(env), releaseId, operator);
 
   }
 

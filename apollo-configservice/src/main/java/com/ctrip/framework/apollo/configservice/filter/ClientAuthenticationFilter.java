@@ -1,8 +1,25 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.configservice.filter;
 
 import com.ctrip.framework.apollo.configservice.util.AccessKeyUtil;
 import com.ctrip.framework.apollo.core.signature.Signature;
 import com.ctrip.framework.apollo.core.utils.StringUtils;
+import com.google.common.net.HttpHeaders;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
@@ -53,7 +70,7 @@ public class ClientAuthenticationFilter implements Filter {
     List<String> availableSecrets = accessKeyUtil.findAvailableSecret(appId);
     if (!CollectionUtils.isEmpty(availableSecrets)) {
       String timestamp = request.getHeader(Signature.HTTP_HEADER_TIMESTAMP);
-      String authorization = request.getHeader(Signature.HTTP_HEADER_AUTHORIZATION);
+      String authorization = request.getHeader(HttpHeaders.AUTHORIZATION);
 
       // check timestamp, valid within 1 minute
       if (!checkTimestamp(timestamp)) {
@@ -63,9 +80,9 @@ public class ClientAuthenticationFilter implements Filter {
       }
 
       // check signature
-      String path = request.getServletPath();
+      String uri = request.getRequestURI();
       String query = request.getQueryString();
-      if (!checkAuthorization(authorization, availableSecrets, timestamp, path, query)) {
+      if (!checkAuthorization(authorization, availableSecrets, timestamp, uri, query)) {
         logger.warn("Invalid authorization. appId={},authorization={}", appId, authorization);
         response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Unauthorized");
         return;
@@ -89,7 +106,7 @@ public class ClientAuthenticationFilter implements Filter {
     }
 
     long x = System.currentTimeMillis() - requestTimeMillis;
-    return x <= TIMESTAMP_INTERVAL;
+    return x >= -TIMESTAMP_INTERVAL && x <= TIMESTAMP_INTERVAL;
   }
 
   private boolean checkAuthorization(String authorization, List<String> availableSecrets,

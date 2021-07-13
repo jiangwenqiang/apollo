@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.portal.controller;
 
 import com.ctrip.framework.apollo.common.dto.ReleaseDTO;
@@ -112,6 +128,16 @@ public class ReleaseController {
     return createdRelease;
   }
 
+  @GetMapping("/envs/{env}/releases/{releaseId}")
+  public ReleaseDTO get(@PathVariable String env,
+                        @PathVariable long releaseId) {
+    ReleaseDTO release = releaseService.findReleaseById(Env.valueOf(env), releaseId);
+
+    if (release == null) {
+      throw new NotFoundException("release not found");
+    }
+    return release;
+  }
 
   @GetMapping(value = "/apps/{appId}/envs/{env}/clusters/{clusterName}/namespaces/{namespaceName}/releases/all")
   public List<ReleaseBO> findAllReleases(@PathVariable String appId,
@@ -153,7 +179,8 @@ public class ReleaseController {
 
   @PutMapping(path = "/envs/{env}/releases/{releaseId}/rollback")
   public void rollback(@PathVariable String env,
-                       @PathVariable long releaseId) {
+                       @PathVariable long releaseId,
+                       @RequestParam(defaultValue = "-1") long toReleaseId) {
     ReleaseDTO release = releaseService.findReleaseById(Env.valueOf(env), releaseId);
 
     if (release == null) {
@@ -164,7 +191,11 @@ public class ReleaseController {
       throw new AccessDeniedException("Access is denied");
     }
 
-    releaseService.rollback(Env.valueOf(env), releaseId, userInfoHolder.getUser().getUserId());
+    if (toReleaseId > -1) {
+      releaseService.rollbackTo(Env.valueOf(env), releaseId, toReleaseId, userInfoHolder.getUser().getUserId());
+    } else {
+      releaseService.rollback(Env.valueOf(env), releaseId, userInfoHolder.getUser().getUserId());
+    }
 
     ConfigPublishEvent event = ConfigPublishEvent.instance();
     event.withAppId(release.getAppId())

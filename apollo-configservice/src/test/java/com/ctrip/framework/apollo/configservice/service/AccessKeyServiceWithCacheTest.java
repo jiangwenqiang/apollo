@@ -1,8 +1,25 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.configservice.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.when;
+import static org.awaitility.Awaitility.*;
 
 import com.ctrip.framework.apollo.biz.config.BizConfig;
 import com.ctrip.framework.apollo.biz.entity.AccessKey;
@@ -10,6 +27,7 @@ import com.ctrip.framework.apollo.biz.repository.AccessKeyRepository;
 import com.google.common.collect.Lists;
 import java.util.Date;
 import java.util.concurrent.TimeUnit;
+import org.awaitility.Awaitility;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -40,6 +58,10 @@ public class AccessKeyServiceWithCacheTest {
     when(bizConfig.accessKeyCacheScanIntervalTimeUnit()).thenReturn(scanIntervalTimeUnit);
     when(bizConfig.accessKeyCacheRebuildInterval()).thenReturn(scanInterval);
     when(bizConfig.accessKeyCacheRebuildIntervalTimeUnit()).thenReturn(scanIntervalTimeUnit);
+
+    Awaitility.reset();
+    Awaitility.setDefaultTimeout(scanInterval * 100, scanIntervalTimeUnit);
+    Awaitility.setDefaultPollInterval(scanInterval, scanIntervalTimeUnit);
   }
 
   @Test
@@ -63,8 +85,7 @@ public class AccessKeyServiceWithCacheTest {
     when(accessKeyRepository.findAllById(anyList()))
         .thenReturn(Lists.newArrayList(firstAccessKey, secondAccessKey));
 
-    scanIntervalTimeUnit.sleep(scanInterval * 10);
-    assertThat(accessKeyServiceWithCache.getAvailableSecrets(appId)).isEmpty();
+    await().untilAsserted(() -> assertThat(accessKeyServiceWithCache.getAvailableSecrets(appId)).isEmpty());
 
     // Update access key, enable both of them
     firstAccessKey = assembleAccessKey(1L, appId, "secret-1", true, false, 1577808002000L);
@@ -74,8 +95,13 @@ public class AccessKeyServiceWithCacheTest {
     when(accessKeyRepository.findAllById(anyList()))
         .thenReturn(Lists.newArrayList(firstAccessKey, secondAccessKey));
 
-    scanIntervalTimeUnit.sleep(scanInterval * 10);
-    assertThat(accessKeyServiceWithCache.getAvailableSecrets(appId)).containsExactly("secret-1", "secret-2");
+    await().untilAsserted(() -> assertThat(accessKeyServiceWithCache.getAvailableSecrets(appId))
+        .containsExactly("secret-1", "secret-2"));
+    // should also work with appid in different case
+    assertThat(accessKeyServiceWithCache.getAvailableSecrets(appId.toUpperCase()))
+        .containsExactly("secret-1", "secret-2");
+    assertThat(accessKeyServiceWithCache.getAvailableSecrets(appId.toLowerCase()))
+        .containsExactly("secret-1", "secret-2");
 
     // Update access key, disable the first one
     firstAccessKey = assembleAccessKey(1L, appId, "secret-1", false, false, 1577808004000L);
@@ -84,15 +110,15 @@ public class AccessKeyServiceWithCacheTest {
     when(accessKeyRepository.findAllById(anyList()))
         .thenReturn(Lists.newArrayList(firstAccessKey, secondAccessKey));
 
-    scanIntervalTimeUnit.sleep(scanInterval * 10);
-    assertThat(accessKeyServiceWithCache.getAvailableSecrets(appId)).containsExactly("secret-2");
+    await().untilAsserted(() -> assertThat(accessKeyServiceWithCache.getAvailableSecrets(appId))
+        .containsExactly("secret-2"));
 
     // Delete access key, delete the second one
     when(accessKeyRepository.findAllById(anyList()))
         .thenReturn(Lists.newArrayList(firstAccessKey));
 
-    scanIntervalTimeUnit.sleep(scanInterval * 10);
-    assertThat(accessKeyServiceWithCache.getAvailableSecrets(appId)).isEmpty();
+    await().untilAsserted(
+        () -> assertThat(accessKeyServiceWithCache.getAvailableSecrets(appId)).isEmpty());
 
     // Add new access key in runtime, enable by default
     when(accessKeyRepository.findFirst500ByDataChangeLastModifiedTimeGreaterThanOrderByDataChangeLastModifiedTimeAsc(new Date(1577808004000L)))
@@ -100,8 +126,9 @@ public class AccessKeyServiceWithCacheTest {
     when(accessKeyRepository.findAllById(anyList()))
         .thenReturn(Lists.newArrayList(firstAccessKey, thirdAccessKey));
 
-    scanIntervalTimeUnit.sleep(scanInterval * 10);
-    assertThat(accessKeyServiceWithCache.getAvailableSecrets(appId)).containsExactly("secret-3");
+    await().untilAsserted(() -> assertThat(accessKeyServiceWithCache.getAvailableSecrets(appId))
+        .containsExactly("secret-3"));
+    reachabilityFence(accessKeyServiceWithCache);
   }
 
   public AccessKey assembleAccessKey(Long id, String appId, String secret, boolean enabled,
@@ -114,5 +141,19 @@ public class AccessKeyServiceWithCacheTest {
     accessKey.setDeleted(deleted);
     accessKey.setDataChangeLastModifiedTime(new Date(dataChangeLastModifiedTime));
     return accessKey;
+  }
+
+  /**
+   * the referenced object is not reclaimable by garbage collection at least until after the
+   * invocation of this method. see the java 9 method {@link java.lang.ref.Reference#reachabilityFence}
+   * see the netty consistency method for JDK 6-8 {@link io.netty.util.ResourceLeakDetector.DefaultResourceLeak#reachabilityFence0}
+   *
+   * @param ref the reference
+   */
+  private static void reachabilityFence(Object ref) {
+    if (ref != null) {
+      synchronized (ref) {
+      }
+    }
   }
 }

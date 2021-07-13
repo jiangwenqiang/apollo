@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.portal.component.config;
 
 
@@ -24,7 +40,7 @@ public class PortalConfig extends RefreshableConfig {
 
   private static final Logger logger = LoggerFactory.getLogger(PortalConfig.class);
 
-  private Gson gson = new Gson();
+  private static final Gson GSON = new Gson();
   private static final Type ORGANIZATION = new TypeToken<List<Organization>>() {
   }.getType();
 
@@ -73,9 +89,9 @@ public class PortalConfig extends RefreshableConfig {
     Map<String, String> map = Collections.emptyMap();
     try {
       // try to parse
-      map = gson.fromJson(jsonContent, META_SERVERS);
+      map = GSON.fromJson(jsonContent, META_SERVERS);
     } catch (Exception e) {
-      logger.error("wrong format with key: {}", key);
+      logger.error("Wrong format for: {}", key, e);
     }
     return map;
   }
@@ -97,7 +113,22 @@ public class PortalConfig extends RefreshableConfig {
     }
 
     for (String env : configurations) {
-      result.add(Env.fromString(env));
+      result.add(Env.valueOf(env));
+    }
+
+    return result;
+  }
+
+  public Set<Env> webHookSupportedEnvs() {
+    String[] configurations = getArrayProperty("webhook.supported.envs", null);
+
+    Set<Env> result = Sets.newHashSet();
+    if (configurations == null || configurations.length == 0) {
+      return result;
+    }
+
+    for (String env : configurations) {
+      result.add(Env.valueOf(env));
     }
 
     return result;
@@ -129,7 +160,7 @@ public class PortalConfig extends RefreshableConfig {
   public List<Organization> organizations() {
 
     String organizations = getValue("organizations");
-    return organizations == null ? Collections.emptyList() : gson.fromJson(organizations, ORGANIZATION);
+    return organizations == null ? Collections.emptyList() : GSON.fromJson(organizations, ORGANIZATION);
   }
 
   public String portalAddress() {
@@ -162,7 +193,7 @@ public class PortalConfig extends RefreshableConfig {
     }
 
     for (String env : configurations) {
-      result.add(Env.fromString(env));
+      result.add(Env.valueOf(env));
     }
 
     return result;
@@ -172,8 +203,28 @@ public class PortalConfig extends RefreshableConfig {
     return getValue("consumer.token.salt", "apollo-portal");
   }
 
+  public boolean isEmailEnabled() {
+    return getBooleanProperty("email.enabled", false);
+  }
+
+  public String emailConfigHost() {
+    return getValue("email.config.host", "");
+  }
+
+  public String emailConfigUser() {
+    return getValue("email.config.user", "");
+  }
+
+  public String emailConfigPassword() {
+    return getValue("email.config.password", "");
+  }
+
   public String emailSender() {
-    return getValue("email.sender");
+    String value = getValue("email.sender", "");
+    if (Strings.isNullOrEmpty(value)) {
+      value = emailConfigUser();
+    }
+    return value;
   }
 
   public String emailTemplateFramework() {
@@ -193,7 +244,7 @@ public class PortalConfig extends RefreshableConfig {
   }
 
   public String wikiAddress() {
-    return getValue("wiki.address", "https://github.com/ctripcorp/apollo/wiki");
+    return getValue("wiki.address", "https://www.apolloconfig.com");
   }
 
   public boolean canAppAdminCreatePrivateNamespace() {
@@ -206,6 +257,10 @@ public class PortalConfig extends RefreshableConfig {
 
   public boolean isManageAppMasterPermissionEnabled() {
     return getBooleanProperty(SystemRoleManagerService.MANAGE_APP_MASTER_LIMIT_SWITCH_KEY, false);
+  }
+
+  public String getAdminServiceAccessTokens() {
+    return getValue("admin-service.access.tokens");
   }
 
   /***
@@ -272,6 +327,10 @@ public class PortalConfig extends RefreshableConfig {
 
   public String hermesServerAddress() {
     return getValue("hermes.server.address");
+  }
+
+  public String[] webHookUrls() {
+    return getArrayProperty("config.release.webhook.service.url", null);
   }
 
 }

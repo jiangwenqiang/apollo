@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.spring;
 
 import com.ctrip.framework.apollo.Config;
@@ -5,8 +21,6 @@ import com.ctrip.framework.apollo.core.ConfigConsts;
 import com.ctrip.framework.apollo.spring.annotation.ApolloConfig;
 import com.ctrip.framework.apollo.spring.boot.ApolloApplicationContextInitializer;
 import com.ctrip.framework.apollo.spring.config.PropertySourcesConstants;
-import com.google.common.base.Predicate;
-import com.google.common.collect.Collections2;
 import com.google.common.collect.Sets;
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -407,13 +421,13 @@ public class BootstrapConfigTest {
     @Test
     public void test() {
       List<EnvironmentPostProcessor> processorList =  SpringFactoriesLoader.loadFactories(EnvironmentPostProcessor.class, getClass().getClassLoader());
-
-      Boolean containsApollo = !Collections2.filter(processorList, new Predicate<EnvironmentPostProcessor>() {
-            @Override
-            public boolean apply(EnvironmentPostProcessor input) {
-                return input instanceof ApolloApplicationContextInitializer;
-            }
-        }).isEmpty();
+      boolean containsApollo = false;
+      for (EnvironmentPostProcessor postProcessor : processorList) {
+        if (postProcessor instanceof ApolloApplicationContextInitializer) {
+          containsApollo = true;
+          break;
+        }
+      }
       Assert.assertTrue(containsApollo);
     }
   }

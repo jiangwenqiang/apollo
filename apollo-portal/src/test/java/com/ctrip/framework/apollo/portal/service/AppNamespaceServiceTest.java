@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.portal.service;
 
 import com.ctrip.framework.apollo.common.entity.AppNamespace;
@@ -72,6 +88,7 @@ public class AppNamespaceServiceTest extends AbstractIntegrationTest {
     AppNamespace appNamespace = assembleBaseAppNamespace();
     appNamespace.setPublic(true);
     appNamespace.setName("old");
+    appNamespace.setFormat(ConfigFileFormat.Properties.getValue());
 
     appNamespaceService.createAppNamespaceInLocal(appNamespace);
   }
@@ -95,6 +112,7 @@ public class AppNamespaceServiceTest extends AbstractIntegrationTest {
     AppNamespace appNamespace = assembleBaseAppNamespace();
     appNamespace.setPublic(true);
     appNamespace.setName("old");
+    appNamespace.setFormat(ConfigFileFormat.Properties.getValue());
 
     AppNamespace createdAppNamespace = appNamespaceService.createAppNamespaceInLocal(appNamespace, false);
 
@@ -109,6 +127,7 @@ public class AppNamespaceServiceTest extends AbstractIntegrationTest {
     AppNamespace appNamespace = assembleBaseAppNamespace();
     appNamespace.setPublic(true);
     appNamespace.setName("datasource");
+    appNamespace.setFormat(ConfigFileFormat.Properties.getValue());
 
     appNamespaceService.createAppNamespaceInLocal(appNamespace, false);
   }
@@ -127,6 +146,24 @@ public class AppNamespaceServiceTest extends AbstractIntegrationTest {
     Assert.assertNotNull(createdAppNamespace);
     Assert.assertEquals(appNamespace.getName(), createdAppNamespace.getName());
   }
+
+  @Test
+  @Sql(scripts = "/sql/appnamespaceservice/init-appnamespace.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)
+  @Sql(scripts = "/sql/cleanup.sql", executionPhase = Sql.ExecutionPhase.AFTER_TEST_METHOD)
+  public void testCreatePublicAppNamespaceWithWrongFormatNotExisted() {
+    AppNamespace appNamespace = assembleBaseAppNamespace();
+    appNamespace.setPublic(true);
+    appNamespace.setFormat(ConfigFileFormat.YAML.getValue());
+
+    appNamespaceService.createAppNamespaceInLocal(appNamespace);
+
+    AppNamespace createdAppNamespace = appNamespaceService.findPublicAppNamespace(appNamespace.getName());
+
+    Assert.assertNotNull(createdAppNamespace);
+    Assert.assertEquals(appNamespace.getName(), createdAppNamespace.getName());
+    Assert.assertEquals(ConfigFileFormat.Properties.getValue(), createdAppNamespace.getFormat());
+  }
+
 
   @Test(expected = BadRequestException.class)
   @Sql(scripts = "/sql/appnamespaceservice/init-appnamespace.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD)

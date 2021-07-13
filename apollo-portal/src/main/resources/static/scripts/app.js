@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 var prefixPath = window.localStorage.getItem("prefixPath") || "";
 
 /**utils*/
@@ -68,3 +84,5 @@ var delete_app_cluster_namespace_module = angular.module('delete_app_cluster_nam
 var system_info_module = angular.module('system_info', ['app.service', 'apollo.directive', 'app.util', 'toastr', 'angular-loading-bar']);
 //access secretKey
 var access_key_module = angular.module('access_key', ['app.service', 'apollo.directive', 'app.util', 'toastr', 'angular-loading-bar']);
+//config export
+var config_export_module = angular.module('config_export', ['app.service', 'apollo.directive', 'app.util', 'toastr', 'angular-loading-bar']);

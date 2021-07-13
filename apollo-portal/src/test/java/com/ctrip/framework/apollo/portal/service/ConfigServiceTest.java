@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.portal.service;
 
 import com.ctrip.framework.apollo.common.dto.ItemChangeSets;
@@ -15,6 +31,7 @@ import com.ctrip.framework.apollo.portal.entity.model.NamespaceTextModel;
 import com.ctrip.framework.apollo.portal.entity.vo.ItemDiffs;
 import com.ctrip.framework.apollo.portal.entity.vo.NamespaceIdentifier;
 
+import java.util.Collections;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
@@ -100,7 +117,7 @@ public class ConfigServiceTest extends AbstractUnitTest {
   @Test
   public void testCompareTargetNamespaceHasNoItems() {
     ItemDTO sourceItem1 = new ItemDTO("a", "b", "comment", 1);
-    List<ItemDTO> sourceItems = Arrays.asList(sourceItem1);
+    List<ItemDTO> sourceItems = Collections.singletonList(sourceItem1);
 
     String appId = "6666", env = "LOCAL", clusterName = ConfigConsts.CLUSTER_NAME_DEFAULT,
         namespaceName = ConfigConsts.NAMESPACE_APPLICATION;
@@ -213,7 +230,7 @@ public class ConfigServiceTest extends AbstractUnitTest {
     targetNamespace.setEnv(env);
     targetNamespace.setClusterName(clusterName);
     targetNamespace.setNamespaceName(namespaceName);
-    return Arrays.asList(targetNamespace);
+    return Collections.singletonList(targetNamespace);
   }
 
 }

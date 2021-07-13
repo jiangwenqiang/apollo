@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.portal.service;
 
 import com.ctrip.framework.apollo.common.constants.GsonType;
@@ -32,7 +48,7 @@ import java.util.Set;
 @Service
 public class ReleaseService {
 
-  private static final Gson gson = new Gson();
+  private static final Gson GSON = new Gson();
 
   private final UserInfoHolder userInfoHolder;
   private final AdminServiceAPI.ReleaseAPI releaseAPI;
@@ -101,7 +117,7 @@ public class ReleaseService {
       release.setBaseInfo(releaseDTO);
 
       Set<KVEntity> kvEntities = new LinkedHashSet<>();
-      Map<String, String> configurations = gson.fromJson(releaseDTO.getConfigurations(), GsonType.CONFIG);
+      Map<String, String> configurations = GSON.fromJson(releaseDTO.getConfigurations(), GsonType.CONFIG);
       Set<Map.Entry<String, String>> entries = configurations.entrySet();
       for (Map.Entry<String, String> entry : entries) {
         kvEntities.add(new KVEntity(entry.getKey(), entry.getValue()));
@@ -143,6 +159,10 @@ public class ReleaseService {
     releaseAPI.rollback(env, releaseId, operator);
   }
 
+  public void rollbackTo(Env env, long releaseId, long toReleaseId, String operator) {
+    releaseAPI.rollbackTo(env, releaseId, toReleaseId, operator);
+  }
+
   public ReleaseCompareResult compare(Env env, long baseReleaseId, long toCompareReleaseId) {
 
     ReleaseDTO baseRelease = null;
@@ -160,9 +180,9 @@ public class ReleaseService {
 
   public ReleaseCompareResult compare(ReleaseDTO baseRelease, ReleaseDTO toCompareRelease) {
     Map<String, String> baseReleaseConfiguration = baseRelease == null ? new HashMap<>() :
-                                                   gson.fromJson(baseRelease.getConfigurations(), GsonType.CONFIG);
+                                                   GSON.fromJson(baseRelease.getConfigurations(), GsonType.CONFIG);
     Map<String, String> toCompareReleaseConfiguration = toCompareRelease == null ? new HashMap<>() :
-                                                        gson.fromJson(toCompareRelease.getConfigurations(),
+                                                        GSON.fromJson(toCompareRelease.getConfigurations(),
                                                                       GsonType.CONFIG);
 
     ReleaseCompareResult compareResult = new ReleaseCompareResult();

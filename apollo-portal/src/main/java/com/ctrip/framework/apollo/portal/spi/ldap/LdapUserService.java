@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.portal.spi.ldap;
 
 import static java.util.stream.Collectors.collectingAndThen;
@@ -16,12 +32,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Set;
 import java.util.TreeSet;
-import javax.naming.Name;
 import javax.naming.directory.Attribute;
 import javax.naming.ldap.LdapName;
 import org.apache.commons.lang.StringUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.ldap.core.AttributesMapper;
 import org.springframework.ldap.core.ContextMapper;
 import org.springframework.ldap.core.DirContextAdapter;
@@ -178,15 +194,20 @@ public class LdapUserService implements UserService {
   }
 
   private UserInfo searchUserById(String userId) {
-    return ldapTemplate.searchForObject(query().where(loginIdAttrName).is(userId),
-        ctx -> {
-          UserInfo userInfo = new UserInfo();
-          DirContextAdapter contextAdapter = (DirContextAdapter) ctx;
-          userInfo.setEmail(contextAdapter.getStringAttribute(emailAttrName));
-          userInfo.setName(contextAdapter.getStringAttribute(userDisplayNameAttrName));
-          userInfo.setUserId(contextAdapter.getStringAttribute(loginIdAttrName));
-          return userInfo;
-        });
+    try {
+      return ldapTemplate.searchForObject(query().where(loginIdAttrName).is(userId),
+          ctx -> {
+            UserInfo userInfo = new UserInfo();
+            DirContextAdapter contextAdapter = (DirContextAdapter) ctx;
+            userInfo.setEmail(contextAdapter.getStringAttribute(emailAttrName));
+            userInfo.setName(contextAdapter.getStringAttribute(userDisplayNameAttrName));
+            userInfo.setUserId(contextAdapter.getStringAttribute(loginIdAttrName));
+            return userInfo;
+          });
+    } catch (EmptyResultDataAccessException ex) {
+      // EmptyResultDataAccessException means no record found
+      return null;
+    }
   }
 
   /**
@@ -280,9 +301,14 @@ public class LdapUserService implements UserService {
       }
       return null;
     }
-    return ldapTemplate
-        .searchForObject(ldapQueryCriteria().and(loginIdAttrName).is(userId), ldapUserInfoMapper);
 
+    try {
+      return ldapTemplate
+          .searchForObject(ldapQueryCriteria().and(loginIdAttrName).is(userId), ldapUserInfoMapper);
+    } catch (EmptyResultDataAccessException ex) {
+      // EmptyResultDataAccessException means no record found
+      return null;
+    }
   }
 
   @Override
@@ -290,12 +316,10 @@ public class LdapUserService implements UserService {
     if (CollectionUtils.isEmpty(userIds)) {
       return Collections.emptyList();
     }
-    List<UserInfo> userList = new ArrayList<>();
     if (StringUtils.isNotBlank(groupSearch)) {
       List<UserInfo> userListByGroup = searchUserInfoByGroup(groupBase, groupSearch, null,
           userIds);
-      userList.addAll(userListByGroup);
-      return userList;
+      return userListByGroup;
     }
     ContainerCriteria criteria = query().where(loginIdAttrName).is(userIds.get(0));
     userIds.stream().skip(1).forEach(userId -> criteria.or(loginIdAttrName).is(userId));

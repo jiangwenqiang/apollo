@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.openapi.v1.controller;
 
 import com.ctrip.framework.apollo.common.dto.ItemDTO;
@@ -41,7 +57,7 @@ public class ItemController {
   public OpenItemDTO getItem(@PathVariable String appId, @PathVariable String env, @PathVariable String clusterName,
       @PathVariable String namespaceName, @PathVariable String key) {
 
-    ItemDTO itemDTO = itemService.loadItem(Env.fromString(env), appId, clusterName, namespaceName, key);
+    ItemDTO itemDTO = itemService.loadItem(Env.valueOf(env), appId, clusterName, namespaceName, key);
 
     return itemDTO == null ? null : OpenApiBeanUtils.transformFromItemDTO(itemDTO);
   }
@@ -60,8 +76,8 @@ public class ItemController {
       throw new BadRequestException("User " + item.getDataChangeCreatedBy() + " doesn't exist!");
     }
 
-    if(!StringUtils.isEmpty(item.getComment()) && item.getComment().length() > 64){
-      throw new BadRequestException("Comment length should not exceed 64 characters");
+    if(!StringUtils.isEmpty(item.getComment()) && item.getComment().length() > 256){
+      throw new BadRequestException("Comment length should not exceed 256 characters");
     }
 
     ItemDTO toCreate = OpenApiBeanUtils.transformToItemDTO(item);
@@ -73,7 +89,7 @@ public class ItemController {
     toCreate.setDataChangeLastModifiedTime(null);
     toCreate.setDataChangeCreatedTime(null);
 
-    ItemDTO createdItem = itemService.createItem(appId, Env.fromString(env),
+    ItemDTO createdItem = itemService.createItem(appId, Env.valueOf(env),
         clusterName, namespaceName, toCreate);
     return OpenApiBeanUtils.transformFromItemDTO(createdItem);
   }
@@ -97,19 +113,19 @@ public class ItemController {
       throw new BadRequestException("user(dataChangeLastModifiedBy) not exists");
     }
 
-    if(!StringUtils.isEmpty(item.getComment()) && item.getComment().length() > 64){
-      throw new BadRequestException("Comment length should not exceed 64 characters");
+    if(!StringUtils.isEmpty(item.getComment()) && item.getComment().length() > 256){
+      throw new BadRequestException("Comment length should not exceed 256 characters");
     }
 
     try {
       ItemDTO toUpdateItem = itemService
-          .loadItem(Env.fromString(env), appId, clusterName, namespaceName, item.getKey());
+          .loadItem(Env.valueOf(env), appId, clusterName, namespaceName, item.getKey());
       //protect. only value,comment,lastModifiedBy can be modified
       toUpdateItem.setComment(item.getComment());
       toUpdateItem.setValue(item.getValue());
       toUpdateItem.setDataChangeLastModifiedBy(item.getDataChangeLastModifiedBy());
 
-      itemService.updateItem(appId, Env.fromString(env), clusterName, namespaceName, toUpdateItem);
+      itemService.updateItem(appId, Env.valueOf(env), clusterName, namespaceName, toUpdateItem);
     } catch (Throwable ex) {
       if (ex instanceof HttpStatusCodeException) {
         // check createIfNotExists
@@ -134,12 +150,12 @@ public class ItemController {
       throw new BadRequestException("user(operator) not exists");
     }
 
-    ItemDTO toDeleteItem = itemService.loadItem(Env.fromString(env), appId, clusterName, namespaceName, key);
+    ItemDTO toDeleteItem = itemService.loadItem(Env.valueOf(env), appId, clusterName, namespaceName, key);
     if (toDeleteItem == null){
       throw new BadRequestException("item not exists");
     }
 
-    itemService.deleteItem(Env.fromString(env), toDeleteItem.getId(), operator);
+    itemService.deleteItem(Env.valueOf(env), toDeleteItem.getId(), operator);
   }
 
 }

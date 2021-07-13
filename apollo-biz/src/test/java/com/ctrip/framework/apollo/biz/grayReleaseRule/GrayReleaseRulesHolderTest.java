@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.biz.grayReleaseRule;
 
 import com.google.common.base.Joiner;
@@ -43,7 +59,7 @@ public class GrayReleaseRulesHolderTest {
   private BizConfig bizConfig;
   @Mock
   private GrayReleaseRuleRepository grayReleaseRuleRepository;
-  private Gson gson = new Gson();
+  private static final Gson GSON = new Gson();
   private AtomicLong idCounter;
 
   @Before
@@ -145,7 +161,7 @@ public class GrayReleaseRulesHolderTest {
     rule.setClusterName(clusterName);
     rule.setNamespaceName(namespaceName);
     rule.setBranchName("someBranch");
-    rule.setRules(gson.toJson(ruleItems));
+    rule.setRules(GSON.toJson(ruleItems));
     rule.setReleaseId(releaseId);
     rule.setBranchStatus(branchStatus);
 

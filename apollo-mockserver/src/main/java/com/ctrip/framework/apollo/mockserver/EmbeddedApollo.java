@@ -1,18 +1,34 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.mockserver;
 
 import com.ctrip.framework.apollo.build.ApolloInjector;
+import com.ctrip.framework.apollo.core.ApolloClientSystemConsts;
 import com.ctrip.framework.apollo.core.dto.ApolloConfig;
 import com.ctrip.framework.apollo.core.dto.ApolloConfigNotification;
 import com.ctrip.framework.apollo.core.utils.ResourceUtils;
 import com.ctrip.framework.apollo.internals.ConfigServiceLocator;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -37,9 +53,9 @@ public class EmbeddedApollo extends ExternalResource {
   private static Method CONFIG_SERVICE_LOCATOR_CLEAR;
   private static ConfigServiceLocator CONFIG_SERVICE_LOCATOR;
 
-  private final Gson gson = new Gson();
-  private final Map<String, Map<String, String>> addedOrModifiedPropertiesOfNamespace = new HashMap<>();
-  private final Map<String, Set<String>> deletedKeysOfNamespace = new HashMap<>();
+  private static final Gson GSON = new Gson();
+  private final Map<String, Map<String, String>> addedOrModifiedPropertiesOfNamespace = Maps.newConcurrentMap();
+  private final Map<String, Set<String>> deletedKeysOfNamespace = Maps.newConcurrentMap();
 
   private MockWebServer server;
 
@@ -100,7 +116,7 @@ public class EmbeddedApollo extends ExternalResource {
   }
 
   private void mockConfigServiceUrl(String url) throws Exception {
-    System.setProperty("apollo.configService", url);
+    System.setProperty(ApolloClientSystemConsts.APOLLO_CONFIG_SERVICE, url);
 
     CONFIG_SERVICE_LOCATOR_CLEAR.invoke(CONFIG_SERVICE_LOCATOR);
   }
@@ -116,17 +132,17 @@ public class EmbeddedApollo extends ExternalResource {
 
     Map<String, String> mergedConfigurations = mergeOverriddenProperties(namespace, configurations);
     apolloConfig.setConfigurations(mergedConfigurations);
-    return gson.toJson(apolloConfig);
+    return GSON.toJson(apolloConfig);
   }
 
   private String mockLongPollBody(String notificationsStr) {
-    List<ApolloConfigNotification> oldNotifications = gson.fromJson(notificationsStr, notificationType);
+    List<ApolloConfigNotification> oldNotifications = GSON.fromJson(notificationsStr, notificationType);
     List<ApolloConfigNotification> newNotifications = new ArrayList<>();
     for (ApolloConfigNotification notification : oldNotifications) {
       newNotifications
           .add(new ApolloConfigNotification(notification.getNamespaceName(), notification.getNotificationId() + 1));
     }
-    return gson.toJson(newNotifications);
+    return GSON.toJson(newNotifications);
   }
 
   /**
@@ -151,7 +167,7 @@ public class EmbeddedApollo extends ExternalResource {
     if (addedOrModifiedPropertiesOfNamespace.containsKey(namespace)) {
       addedOrModifiedPropertiesOfNamespace.get(namespace).put(someKey, someValue);
     } else {
-      Map<String, String> m = new HashMap<>();
+      Map<String, String> m = Maps.newConcurrentMap();
       m.put(someKey, someValue);
       addedOrModifiedPropertiesOfNamespace.put(namespace, m);
     }
@@ -164,7 +180,9 @@ public class EmbeddedApollo extends ExternalResource {
     if (deletedKeysOfNamespace.containsKey(namespace)) {
       deletedKeysOfNamespace.get(namespace).add(someKey);
     } else {
-      deletedKeysOfNamespace.put(namespace, ImmutableSet.of(someKey));
+      Set<String> m = Sets.newConcurrentHashSet();
+      m.add(someKey);
+      deletedKeysOfNamespace.put(namespace, m);
     }
   }
 

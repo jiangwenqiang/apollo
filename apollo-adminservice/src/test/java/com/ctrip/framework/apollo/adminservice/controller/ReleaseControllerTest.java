@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.adminservice.controller;
 
 import com.ctrip.framework.apollo.biz.entity.Namespace;
@@ -34,6 +50,7 @@ import static org.mockito.Mockito.*;
 
 public class ReleaseControllerTest extends AbstractControllerTest {
 
+  private static final  Gson GSON = new Gson();
   @Autowired
   ReleaseRepository releaseRepository;
 
@@ -66,12 +83,12 @@ public class ReleaseControllerTest extends AbstractControllerTest {
 
     HttpHeaders headers = new HttpHeaders();
     headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
-    MultiValueMap<String, String> parameters = new LinkedMultiValueMap<String, String>();
+    MultiValueMap<String, String> parameters = new LinkedMultiValueMap<>();
     parameters.add("name", "someReleaseName");
     parameters.add("comment", "someComment");
     parameters.add("operator", "test");
     HttpEntity<MultiValueMap<String, String>> entity =
-        new HttpEntity<MultiValueMap<String, String>>(parameters, headers);
+        new HttpEntity<>(parameters, headers);
     ResponseEntity<ReleaseDTO> response = restTemplate.postForEntity(
         "http://localhost:" + port + "/apps/" + app.getAppId() + "/clusters/" + cluster.getName()
             + "/namespaces/" + namespace.getNamespaceName() + "/releases",
@@ -84,12 +101,12 @@ public class ReleaseControllerTest extends AbstractControllerTest {
     Assert.assertEquals("default", release.getClusterName());
     Assert.assertEquals("application", release.getNamespaceName());
 
-    Map<String, String> configurations = new HashMap<String, String>();
+    Map<String, String> configurations = new HashMap<>();
     configurations.put("k1", "v1");
     configurations.put("k2", "v2");
     configurations.put("k3", "v3");
-    Gson gson = new Gson();
-    Assert.assertEquals(gson.toJson(configurations), release.getConfigurations());
+
+    Assert.assertEquals(GSON.toJson(configurations), release.getConfigurations());
   }
 
   @Test

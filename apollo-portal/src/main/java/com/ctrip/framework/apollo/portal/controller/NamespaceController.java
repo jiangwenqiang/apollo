@@ -1,3 +1,19 @@
+/*
+ * Copyright 2021 Apollo Authors
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ *
+ */
 package com.ctrip.framework.apollo.portal.controller;
 
 import com.ctrip.framework.apollo.common.dto.AppNamespaceDTO;
@@ -227,7 +243,7 @@ public class NamespaceController {
                                                                @RequestParam(name = "page", defaultValue = "0") int page,
                                                                @RequestParam(name = "size", defaultValue = "10") int size) {
 
-    return namespaceService.getPublicAppNamespaceAllNamespaces(Env.fromString(env), publicNamespaceName, page, size);
+    return namespaceService.getPublicAppNamespaceAllNamespaces(Env.valueOf(env), publicNamespaceName, page, size);
 
   }
 
@@ -251,15 +267,15 @@ public class NamespaceController {
     Set<String> missingNamespaces = findMissingNamespaceNames(appId, env, clusterName);
 
     for (String missingNamespace : missingNamespaces) {
-      namespaceAPI.createMissingAppNamespace(Env.fromString(env), findAppNamespace(appId, missingNamespace));
+      namespaceAPI.createMissingAppNamespace(Env.valueOf(env), findAppNamespace(appId, missingNamespace));
     }
 
     return ResponseEntity.ok().build();
   }
 
   private Set<String> findMissingNamespaceNames(String appId, String env, String clusterName) {
-    List<AppNamespaceDTO> configDbAppNamespaces = namespaceAPI.getAppNamespaces(appId, Env.fromString(env));
-    List<NamespaceDTO> configDbNamespaces = namespaceService.findNamespaces(appId, Env.fromString(env), clusterName);
+    List<AppNamespaceDTO> configDbAppNamespaces = namespaceAPI.getAppNamespaces(appId, Env.valueOf(env));
+    List<NamespaceDTO> configDbNamespaces = namespaceService.findNamespaces(appId, Env.valueOf(env), clusterName);
     List<AppNamespace> portalDbAppNamespaces = appNamespaceService.findByAppId(appId);
 
     Set<String> configDbAppNamespaceNames = configDbAppNamespaces.stream().map(AppNamespaceDTO::getName)

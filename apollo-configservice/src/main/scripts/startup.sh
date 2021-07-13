@@ -1,4 +1,19 @@
 #!/bin/bash
+#
+# Copyright 2021 Apollo Authors
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+#
 SERVICE_NAME=apollo-configservice
 ## Adjust log dir if necessary
 LOG_DIR=/opt/logs/100003171
@@ -16,18 +31,22 @@ mkdir -p $LOG_DIR
 
 ########### The following is the same for configservice, adminservice, portal ###########
 export JAVA_OPTS="$JAVA_OPTS -XX:ParallelGCThreads=4 -XX:MaxTenuringThreshold=9 -XX:+DisableExplicitGC -XX:+ScavengeBeforeFullGC -XX:SoftRefLRUPolicyMSPerMB=0 -XX:+ExplicitGCInvokesConcurrent -XX:+HeapDumpOnOutOfMemoryError -XX:-OmitStackTraceInFastThrow -Duser.timezone=Asia/Shanghai -Dclient.encoding.override=UTF-8 -Dfile.encoding=UTF-8 -Djava.security.egd=file:/dev/./urandom"
+# DS_URL, DS_USERNAME, DS_PASSWORD are deprecated, please use SPRING_DATASOURCE_URL, SPRING_DATASOURCE_USERNAME, SPRING_DATASOURCE_PASSWORD instead
 # DataSource URL USERNAME PASSWORD
 if [ "$DS_URL"x != x ]
 then
-    export JAVA_OPTS="$JAVA_OPTS -Dspring.datasource.url=$DS_URL -Dspring.datasource.username=$DS_USERNAME -Dspring.datasource.password=$DS_PASSWORD"
+    export SPRING_DATASOURCE_URL=$DS_URL
+    export SPRING_DATASOURCE_USERNAME=$DS_USERNAME
+    export SPRING_DATASOURCE_PASSWORD=$DS_PASSWORD
 fi
-export JAVA_OPTS="$JAVA_OPTS -Dserver.port=$SERVER_PORT -Dlogging.file=$LOG_DIR/$SERVICE_NAME.log -XX:HeapDumpPath=$LOG_DIR/HeapDumpOnOutOfMemoryError/"
+export JAVA_OPTS="$JAVA_OPTS -Dserver.port=$SERVER_PORT -Dlogging.file.name=$LOG_DIR/$SERVICE_NAME.log -XX:HeapDumpPath=$LOG_DIR/HeapDumpOnOutOfMemoryError/"
+export APP_NAME=$SERVICE_NAME
 
 PATH_TO_JAR=$SERVICE_NAME".jar"
 SERVER_URL="http://localhost:$SERVER_PORT"
 
 function checkPidAlive {
-    for i in `ls -t $SERVICE_NAME*.pid 2>/dev/null`
+    for i in `ls -t $APP_NAME/$APP_NAME.pid 2>/dev/null`
     do
         read pid < $i
 
@@ -113,46 +132,51 @@ if [[ ! -f PATH_TO_JAR && -d current ]]; then
     done
 fi
 
-if [[ -f $SERVICE_NAME".jar" ]]; then
-  rm -rf $SERVICE_NAME".jar"
+# For Docker environment, start in foreground mode
+if [[ -n "$APOLLO_RUN_MODE" ]] && [[ "$APOLLO_RUN_MODE" == "Docker" ]]; then
+    exec $javaexe -Dsun.misc.URLClassPath.disableJarChecking=true $JAVA_OPTS -jar $PATH_TO_JAR
+else
+    if [[ -f $SERVICE_NAME".jar" ]]; then
+        rm -rf $SERVICE_NAME".jar"
+    fi
+
+    printf "$(date) ==== Starting ==== \n"
+
+    ln $PATH_TO_JAR $SERVICE_NAME".jar"
+    chmod a+x $SERVICE_NAME".jar"
+    ./$SERVICE_NAME".jar" start
+
+    rc=$?;
+
+    if [[ $rc != 0 ]];
+    then
+        echo "$(date) Failed to start $SERVICE_NAME.jar, return code: $rc"
+        exit $rc;
+    fi
+
+    declare -i counter=0
+    declare -i max_counter=48 # 48*5=240s
+    declare -i total_time=0
+
+    printf "Waiting for server startup"
+    until [[ (( counter -ge max_counter )) || "$(curl -X GET --silent --connect-timeout 1 --max-time 2 --head $SERVER_URL | grep "HTTP")" != "" ]];
+    do
+        printf "."
+        counter+=1
+        sleep 5
+
+        checkPidAlive
+    done
+
+    total_time=counter*5
+
+    if [[ (( counter -ge max_counter )) ]];
+    then
+        printf "\n$(date) Server failed to start in $total_time seconds!\n"
+        exit 1;
+    fi
+
+    printf "\n$(date) Server started in $total_time seconds!\n"
+
+    exit 0;
 fi
-
-printf "$(date) ==== Starting ==== \n"
-
-ln $PATH_TO_JAR $SERVICE_NAME".jar"
-chmod a+x $SERVICE_NAME".jar"
-./$SERVICE_NAME".jar" start
-
-rc=$?;
-
-if [[ $rc != 0 ]];
-then
-    echo "$(date) Failed to start $SERVICE_NAME.jar, return code: $rc"
-    exit $rc;
-fi
-
-declare -i counter=0
-declare -i max_counter=48 # 48*5=240s
-declare -i total_time=0
-
-printf "Waiting for server startup"
-until [[ (( counter -ge max_counter )) || "$(curl -X GET --silent --connect-timeout 1 --max-time 2 --head $SERVER_URL | grep "HTTP")" != "" ]];
-do
-    printf "."
-    counter+=1
-    sleep 5
-
-    checkPidAlive
-done
-
-total_time=counter*5
-
-if [[ (( counter -ge max_counter )) ]];
-then
-    printf "\n$(date) Server failed to start in $total_time seconds!\n"
-    exit 1;
-fi
-
-printf "\n$(date) Server started in $total_time seconds!\n"
-
-exit 0;
